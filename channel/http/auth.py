@@ -69,12 +69,10 @@ def authenticate(password):
     :return: json
     """
     authPassword = channel_conf(const.HTTP).get('http_auth_password')
-    if (authPassword != password):
+    if authPassword != password:
         return False
-    else:
-        login_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        token = Auth.encode_auth_token(password, login_time)
-        return token
+    login_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    return Auth.encode_auth_token(password, login_time)
 
 
 def identify(request):
@@ -85,23 +83,19 @@ def identify(request):
     try:
         if (request is None):
             return False
-        authorization = request.cookies.get('Authorization')
-        if (authorization):
+        if authorization := request.cookies.get('Authorization'):
             payload = Auth.decode_auth_token(authorization)
             if not isinstance(payload, str):
                 authPassword = channel_conf(
                     const.HTTP).get('http_auth_password')
                 password = payload['data']['id']
-                if (password != authPassword):
-                    return False
-                else:
-                    return True
+                return password == authPassword
         return False
- 
+
     except jwt.ExpiredSignatureError:
         #result = 'Token已更改，请重新登录获取'
         return False
- 
+
     except jwt.InvalidTokenError:
         #result = '没有提供认证token'
         return False

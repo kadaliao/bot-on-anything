@@ -51,29 +51,29 @@ class SensitiveWord:
     def process_text(self, text):
 
         #检测敏感词配置是否存在
-        if self.config is not None and "common" in self.config and "sensitive" in self.config["common"] and self.config["common"]["sensitive"]:
-            #存在则执行正常检测流程
-            url = "https://aip.baidubce.com/rest/2.0/solution/v1/text_censor/v2/user_defined"  # API 请求地址
-            access_token = self.get_access_token()
-            headers = {"content-type": "application/x-www-form-urlencoded"}
-            params = {
-                "text": text.encode("utf-8"),
-                "access_token": access_token
-            }
-            response = requests.post(url, data=params, headers=headers)
-
-            if response.status_code != 200:
-                raise ValueError(f"无法连接到接口，请检查你的网络: {response.json().get('error_msg')}")
-
-            conclusion_type = response.json().get("conclusionType")
-
-
-            print(response.json())  # 输出完整的 API 响应结果
-
-            if conclusion_type in [1, None]:
-                return False
-            else:
-                return True
-        #不存在则直接返回无敏感词
-        else:
+        if (
+            self.config is None
+            or "common" not in self.config
+            or "sensitive" not in self.config["common"]
+            or not self.config["common"]["sensitive"]
+        ):
             return False
+        #存在则执行正常检测流程
+        url = "https://aip.baidubce.com/rest/2.0/solution/v1/text_censor/v2/user_defined"  # API 请求地址
+        access_token = self.get_access_token()
+        headers = {"content-type": "application/x-www-form-urlencoded"}
+        params = {
+            "text": text.encode("utf-8"),
+            "access_token": access_token
+        }
+        response = requests.post(url, data=params, headers=headers)
+
+        if response.status_code != 200:
+            raise ValueError(f"无法连接到接口，请检查你的网络: {response.json().get('error_msg')}")
+
+        conclusion_type = response.json().get("conclusionType")
+
+
+        print(response.json())  # 输出完整的 API 响应结果
+
+        return conclusion_type not in [1, None]

@@ -48,7 +48,7 @@ class WechatChannel(Channel):
 
 
     def handle(self, msg):
-        logger.debug("[WX]receive msg: " + json.dumps(msg, ensure_ascii=False))
+        logger.debug(f"[WX]receive msg: {json.dumps(msg, ensure_ascii=False)}")
         from_user_id = msg['FromUserName']
         to_user_id = msg['ToUserName']              # 接收人id
         other_user_id = msg['User']['UserName']     # 对手方id
@@ -67,8 +67,9 @@ class WechatChannel(Channel):
                 if len(str_list) == 2:
                     content = str_list[1].strip()
 
-            img_match_prefix = self.check_prefix(content, channel_conf_val(const.WECHAT, 'image_create_prefix'))
-            if img_match_prefix:
+            if img_match_prefix := self.check_prefix(
+                content, channel_conf_val(const.WECHAT, 'image_create_prefix')
+            ):
                 content = content.split(img_match_prefix, 1)[1].strip()
                 thread_pool.submit(self._do_send_img, content, from_user_id)
             else:
@@ -79,8 +80,9 @@ class WechatChannel(Channel):
             str_list = content.split(match_prefix, 1)
             if len(str_list) == 2:
                 content = str_list[1].strip()
-            img_match_prefix = self.check_prefix(content, channel_conf_val(const.WECHAT, 'image_create_prefix'))
-            if img_match_prefix:
+            if img_match_prefix := self.check_prefix(
+                content, channel_conf_val(const.WECHAT, 'image_create_prefix')
+            ):
                 content = content.split(img_match_prefix, 1)[1].strip()
                 thread_pool.submit(self._do_send_img, content, to_user_id)
             else:
@@ -88,7 +90,7 @@ class WechatChannel(Channel):
 
 
     def handle_group(self, msg):
-        logger.debug("[WX]receive group msg: " + json.dumps(msg, ensure_ascii=False))
+        logger.debug(f"[WX]receive group msg: {json.dumps(msg, ensure_ascii=False)}")
         group_name = msg['User'].get('NickName', None)
         group_id = msg['User'].get('UserName', None)
         if not group_name:
@@ -102,22 +104,22 @@ class WechatChannel(Channel):
         elif len(content_list) == 2:
             content = content_list[1]
 
-        
+
 
         match_prefix = (msg['IsAt'] and not channel_conf_val(const.WECHAT, "group_at_off", False)) or self.check_prefix(origin_content, channel_conf_val(const.WECHAT, 'group_chat_prefix')) or self.check_contain(origin_content, channel_conf_val(const.WECHAT, 'group_chat_keyword'))
 
         # 如果在群里被at了 或 触发机器人关键字，则调用敏感词检测函数
-        if match_prefix is True:
-            if sw.process_text(content):
-                self.send('请检查您的输入是否有违规内容', group_id)
-                return
+        if match_prefix is True and sw.process_text(content):
+            self.send('请检查您的输入是否有违规内容', group_id)
+            return
 
         group_white_list = channel_conf_val(const.WECHAT, 'group_name_white_list')
-        
+
         if ('ALL_GROUP' in group_white_list or group_name in group_white_list or self.check_contain(group_name, channel_conf_val(const.WECHAT, 'group_name_keyword_white_list'))) and match_prefix:
 
-            img_match_prefix = self.check_prefix(content, channel_conf_val(const.WECHAT, 'image_create_prefix'))
-            if img_match_prefix:
+            if img_match_prefix := self.check_prefix(
+                content, channel_conf_val(const.WECHAT, 'image_create_prefix')
+            ):
                 content = content.split(img_match_prefix, 1)[1].strip()
                 thread_pool.submit(self._do_send_img, content, group_id)
             else:
@@ -125,17 +127,15 @@ class WechatChannel(Channel):
         return None
 
     def send(self, msg, receiver):
-        logger.info('[WX] sendMsg={}, receiver={}'.format(msg, receiver))
+        logger.info(f'[WX] sendMsg={msg}, receiver={receiver}')
         itchat.send(msg, toUserName=receiver)
 
     def _do_send(self, query, reply_user_id):
         try:
             if not query:
                 return
-            context = dict()
-            context['from_user_id'] = reply_user_id
-            reply_text = super().build_reply_content(query, context)
-            if reply_text:
+            context = {'from_user_id': reply_user_id}
+            if reply_text := super().build_reply_content(query, context):
                 self.send(channel_conf_val(const.WECHAT, "single_chat_reply_prefix") + reply_text, reply_user_id)
         except Exception as e:
             logger.exception(e)
@@ -144,8 +144,7 @@ class WechatChannel(Channel):
         try:
             if not query:
                 return
-            context = dict()
-            context['type'] = 'IMAGE_CREATE'
+            context = {'type': 'IMAGE_CREATE'}
             img_url = super().build_reply_content(query, context)
             if not img_url:
                 return
@@ -158,7 +157,7 @@ class WechatChannel(Channel):
             image_storage.seek(0)
 
             # 图片发送
-            logger.info('[WX] sendImage, receiver={}'.format(reply_user_id))
+            logger.info(f'[WX] sendImage, receiver={reply_user_id}')
             itchat.send_image(image_storage, reply_user_id)
         except Exception as e:
             logger.exception(e)
@@ -166,25 +165,21 @@ class WechatChannel(Channel):
     def _do_send_group(self, query, msg):
         if not query:
             return
-        context = dict()
-        context['from_user_id'] = msg['ActualUserName']
-        reply_text = super().build_reply_content(query, context)
-        if reply_text:
+        context = {'from_user_id': msg['ActualUserName']}
+        if reply_text := super().build_reply_content(query, context):
             reply_text = '@' + msg['ActualNickName'] + ' ' + reply_text.strip()
             self.send(channel_conf_val(const.WECHAT, "group_chat_reply_prefix", "") + reply_text, msg['User']['UserName'])
 
 
     def check_prefix(self, content, prefix_list):
-        for prefix in prefix_list:
-            if content.startswith(prefix):
-                return prefix
-        return None
+        return next(
+            (prefix for prefix in prefix_list if content.startswith(prefix)), None
+        )
 
 
     def check_contain(self, content, keyword_list):
-        if not keyword_list:
-            return None
-        for ky in keyword_list:
-            if content.find(ky) != -1:
-                return True
-        return None
+        return (
+            next((True for ky in keyword_list if content.find(ky) != -1), None)
+            if keyword_list
+            else None
+        )

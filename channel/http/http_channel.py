@@ -20,8 +20,7 @@ http_app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
 def chat():
     if (auth.identify(request) == False):
         return
-    data = json.loads(request.data)
-    if data:
+    if data := json.loads(request.data):
         msg = data['msg']
         if not msg:
             return
@@ -43,14 +42,12 @@ def login():
     response.headers.add_header('location','./')
     if (auth.identify(request) == True):
         return response
-    else:
-        if request.method == "POST":
-            token = auth.authenticate(request.form['password'])
-            if (token != False):
-                response.set_cookie(key='Authorization', value=token)
-                return response
-        else:
-            return render_template('login.html')
+    if request.method != "POST":
+        return render_template('login.html')
+    token = auth.authenticate(request.form['password'])
+    if (token != False):
+        response.set_cookie(key='Authorization', value=token)
+        return response
     response.headers.set('location','./login?err=登录失败')
     return response
 
@@ -59,8 +56,7 @@ class HttpChannel(Channel):
         http_app.run(host='0.0.0.0', port=channel_conf(const.HTTP).get('port'))
 
     def handle(self, data):
-        context = dict()
         id = data["id"]
-        context['from_user_id'] = str(id)
+        context = {'from_user_id': str(id)}
         return super().build_reply_content(data["msg"], context)
 

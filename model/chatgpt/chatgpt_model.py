@@ -7,36 +7,28 @@ from common import log
 import openai
 import time
 
-user_session = dict()
+user_session = {}
 
 # OpenAI对话模型API (可用)
 class ChatGPTModel(Model):
     def __init__(self):
         openai.api_key = model_conf(const.OPEN_AI).get('api_key')
-        proxy = model_conf(const.OPEN_AI).get('proxy')
-        if proxy:
+        if proxy := model_conf(const.OPEN_AI).get('proxy'):
             openai.proxy = proxy
 
     def reply(self, query, context=None):
         # acquire reply content
         if not context or not context.get('type') or context.get('type') == 'TEXT':
-            log.info("[CHATGPT] query={}".format(query))
+            log.info(f"[CHATGPT] query={query}")
             from_user_id = context['from_user_id']
             if query == '#清除记忆':
                 Session.clear_session(from_user_id)
                 return '记忆已清除'
 
             new_query = Session.build_session_query(query, from_user_id)
-            log.debug("[CHATGPT] session query={}".format(new_query))
+            log.debug(f"[CHATGPT] session query={new_query}")
 
-            # if context.get('stream'):
-            #     # reply in stream
-            #     return self.reply_text_stream(query, new_query, from_user_id)
-
-            reply_content = self.reply_text(new_query, from_user_id, 0)
-            #log.debug("[CHATGPT] new_query={}, user={}, reply_cont={}".format(new_query, from_user_id, reply_content))
-            return reply_content
-
+            return self.reply_text(new_query, from_user_id, 0)
         elif context.get('type', None) == 'IMAGE_CREATE':
             return self.create_img(query, 0)
 
@@ -63,7 +55,7 @@ class ChatGPTModel(Model):
             log.warn(e)
             if retry_count < 1:
                 time.sleep(5)
-                log.warn("[CHATGPT] RateLimit exceed, 第{}次重试".format(retry_count+1))
+                log.warn(f"[CHATGPT] RateLimit exceed, 第{retry_count + 1}次重试")
                 return self.reply_text(query, user_id, retry_count+1)
             else:
                 return "提问太快啦，请休息一下再问我吧"
@@ -102,7 +94,7 @@ class ChatGPTModel(Model):
             log.warn(e)
             if retry_count < 1:
                 time.sleep(5)
-                log.warn("[CHATGPT] RateLimit exceed, 第{}次重试".format(retry_count+1))
+                log.warn(f"[CHATGPT] RateLimit exceed, 第{retry_count + 1}次重试")
                 return self.reply_text_stream(query, user_id, retry_count+1)
             else:
                 return "提问太快啦，请休息一下再问我吧"
@@ -145,20 +137,20 @@ class ChatGPTModel(Model):
 
     def create_img(self, query, retry_count=0):
         try:
-            log.info("[OPEN_AI] image_query={}".format(query))
+            log.info(f"[OPEN_AI] image_query={query}")
             response = openai.Image.create(
                 prompt=query,    #图片描述
                 n=1,             #每次生成图片的数量
                 size="256x256"   #图片大小,可选有 256x256, 512x512, 1024x1024
             )
             image_url = response['data'][0]['url']
-            log.info("[OPEN_AI] image_url={}".format(image_url))
+            log.info(f"[OPEN_AI] image_url={image_url}")
             return image_url
         except openai.error.RateLimitError as e:
             log.warn(e)
             if retry_count < 1:
                 time.sleep(5)
-                log.warn("[OPEN_AI] ImgCreate RateLimit exceed, 第{}次重试".format(retry_count+1))
+                log.warn(f"[OPEN_AI] ImgCreate RateLimit exceed, 第{retry_count + 1}次重试")
                 return self.reply_text(query, retry_count+1)
             else:
                 return "提问太快啦，请休息一下再问我吧"

@@ -28,27 +28,25 @@ class TelegramChannel(Channel):
         bot.infinity_polling()
 
     def handle(self, msg):
-        logger.debug("[Telegram] receive msg: " + msg.text)
-        img_match_prefix = self.check_prefix(msg, channel_conf_val(const.TELEGRAM, 'image_create_prefix'))
-        # 如果是图片请求
-        if img_match_prefix:
+        logger.debug(f"[Telegram] receive msg: {msg.text}")
+        if img_match_prefix := self.check_prefix(
+            msg, channel_conf_val(const.TELEGRAM, 'image_create_prefix')
+        ):
             thread_pool.submit(self._do_send_img, msg, str(msg.chat.id))
         else:
             thread_pool.submit(self._dosend,msg.text,msg)
         
     def _dosend(self,query,msg):
-        context= dict()
-        context['from_user_id'] = str(msg.chat.id)
+        context = {'from_user_id': str(msg.chat.id)}
         reply_text = super().build_reply_content(query, context)
-        logger.info('[Telegram] reply content: {}'.format(reply_text))
+        logger.info(f'[Telegram] reply content: {reply_text}')
         bot.reply_to(msg,reply_text)
         
     def _do_send_img(self, msg, reply_user_id):
         try:
             if not msg:
                 return
-            context = dict()
-            context['type'] = 'IMAGE_CREATE'
+            context = {'type': 'IMAGE_CREATE'}
             img_url = super().build_reply_content(msg.text, context)
             if not img_url:
                 return
@@ -61,15 +59,17 @@ class TelegramChannel(Channel):
             image_storage.seek(0)
 
             # 图片发送
-            logger.info('[Telegrame] sendImage, receiver={}'.format(reply_user_id))
+            logger.info(f'[Telegrame] sendImage, receiver={reply_user_id}')
             bot.send_photo(msg.chat.id,image_storage)
         except Exception as e:
             logger.exception(e)
 
     def check_prefix(self, msg, prefix_list):
-        if not prefix_list:
-            return None
-        for prefix in prefix_list:
-            if msg.text.startswith(prefix):
-                return prefix
-        return None
+        return (
+            next(
+                (prefix for prefix in prefix_list if msg.text.startswith(prefix)),
+                None,
+            )
+            if prefix_list
+            else None
+        )
