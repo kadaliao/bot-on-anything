@@ -25,19 +25,16 @@ thread_pool = ThreadPoolExecutor(max_workers=8)
 def checkEmail(email):
     # regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
     regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    if re.search(regex, email):
-        return True
-    else:
-        return False
+    return bool(re.search(regex, email))
 
 def process(max, speed):
     global wait_time
     i=0
     while i<=max:
-        i=i+1
+        i += 1
         time.sleep(speed)
         print("\r"+"Waited: "+str(i+wait_time)+"s", end='')
-        # print("\r"+"==="*int(i-1)+":-)"+"==="*int(max-i)+"$"+str(max)+'  waited:'+str(i)+"%", end='')
+            # print("\r"+"==="*int(i-1)+":-)"+"==="*int(max-i)+"$"+str(max)+'  waited:'+str(i)+"%", end='')
     wait_time += max*speed
     
 class GmailChannel(Channel):
@@ -49,33 +46,30 @@ class GmailChannel(Channel):
         
     def startup(self):
         global wait_time
-        ques_list = list()
+        ques_list = []
         lastques = {'from': None, 'subject': None, 'content': None}
         print("INFO: let's go...")
-        while(True):
-            ques_list = self.receiveEmail()
-            if ques_list:
+        while True:
+            if ques_list := self.receiveEmail():
                 for ques in ques_list:
                     if ques['subject'] is None:
-                        print("WARN: question from:%s is empty " % ques['from'])
-                    elif(lastques['subject'] == ques['subject'] and lastques['from'] == ques['from']):
-                        print("INFO: this question has already been answered. Q:%s" % (ques['subject']))
-                    else:
-                        if ques['subject']:
-                            print("Nice: a new message coming...", end='\n')
-                            self.handle(ques) 
-                            lastques = ques
-                            wait_time = 0
-                        else: 
-                            print("WARN: the question in subject is empty")
-            else: 
+                        print(f"WARN: question from:{ques['from']} is empty ")
+                    elif (lastques['subject'] == ques['subject'] and lastques['from'] == ques['from']):
+                        print(f"INFO: this question has already been answered. Q:{ques['subject']}")
+                    elif ques['subject']:
+                        print("Nice: a new message coming...", end='\n')
+                        self.handle(ques) 
+                        lastques = ques
+                        wait_time = 0
+                    else: 
+                        print("WARN: the question in subject is empty")
+            else:
                 process(randrange(MIN_DELAY, MAX_DELAY), STEP_TIME)
     
     def handle(self, question):
-        message = dict()
-        context = dict()
-        print("INFO: From: %s Question: %s" % (question['from'], question['subject']))
-        context['from_user_id'] = question['from']
+        message = {}
+        print(f"INFO: From: {question['from']} Question: {question['subject']}")
+        context = {'from_user_id': question['from']}
         answer = super().build_reply_content(question['subject'], context) #get answer from openai
         message = MIMEText(answer)
         message['subject'] = question['subject']
@@ -90,17 +84,17 @@ class GmailChannel(Channel):
         output = {'success': 0, 'failed': 0, 'invalid': 0}
         try:
             smtp_server.sendmail(message['from'], message['to'], message.as_string())
-            print("sending to {}".format(message['to']))
+            print(f"sending to {message['to']}")
             output['success'] += 1
         except Exception as e:
-            print("Error: {}".format(e))
+            print(f"Error: {e}")
             output['failed'] += 1
-        print("successed:{}, failed:{}".format(output['success'], output['failed']))
+        print(f"successed:{output['success']}, failed:{output['failed']}")
         smtp_server.quit()
         return output
 
     def receiveEmail(self):
-        question_list = list()
+        question_list = []
         question = {'from': None, 'subject': None, 'content': None}
         imap_server = imaplib.IMAP4_SSL(imap_ssl_host)
         imap_server.login(self.host_email, self.host_password)
@@ -119,7 +113,7 @@ class GmailChannel(Channel):
                     mail_from = message['from'].split('<')[1].replace(">", "")
                     # if mail_from not in self.addrs_white_list:
                     #     continue
-                    
+
                     #subject do not support chinese
                     mail_subject = decode_header(message['subject'])[0][0]
                     if isinstance(mail_subject, bytes):
@@ -157,19 +151,18 @@ class GmailChannel(Channel):
                     question_list.append(question)
                     question = {'from': None, 'subject': None, 'content': None}
                     imap_server.store(i, "+FLAGS", "\\Deleted") #delete the mail i
-                    print("INFO: deleting mail: %s" % mail_subject)
+                    print(f"INFO: deleting mail: {mail_subject}")
         imap_server.expunge()
         imap_server.close()
         imap_server.logout()
         return question_list
     
     def check_contain(self, content, keyword_list):
-        if not keyword_list:
-            return None
-        for ky in keyword_list:
-            if content.find(ky) != -1:
-                return True
-        return None 
+        return (
+            next((True for ky in keyword_list if content.find(ky) != -1), None)
+            if keyword_list
+            else None
+        ) 
         
 
 

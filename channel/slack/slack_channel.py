@@ -16,10 +16,7 @@ handler = SocketModeHandler(app=app,
 # 监听 Slack app_mention 事件
 @app.event("app_mention")
 def handle_mention(event, say):
-    if 'thread_ts' in event:
-        ts = event["thread_ts"]
-    else:
-        ts = event["ts"]
+    ts = event["thread_ts"] if 'thread_ts' in event else event["ts"]
     reply_text = SlackChannel().handle(event)
     say(text=f"{reply_text}", thread_ts=ts)
 
@@ -28,12 +25,8 @@ class SlackChannel(Channel):
         handler.start()
 
     def handle(self, event):
-        context = dict()
-        if 'thread_ts' in event:
-            ts = event["thread_ts"]
-        else:
-            ts = event["ts"]
-        context['from_user_id'] = str(ts)
+        ts = event["thread_ts"] if 'thread_ts' in event else event["ts"]
+        context = {'from_user_id': str(ts)}
         # 使用正则表达式去除 @xxxx
         plain_text = re.sub(r"<@\w+>", "", event["text"])
         return super().build_reply_content(plain_text, context)

@@ -29,5 +29,4 @@ class TerminalChannel(Channel):
         Multi-line input function
         """
         print(prompt, end="")
-        line = input()
-        return line
+        return input()

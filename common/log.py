@@ -21,27 +21,27 @@ def close_log():
 
 def debug(arg, *args):
     if SWITCH:
-        if len(args) == 0:
-            logger.debug(arg)
-        else:
+        if args:
             logger.debug(arg.format(*args))
+        else:
+            logger.debug(arg)
 
 def info(arg, *args):
     if SWITCH:
-        if len(args) == 0:
-            logger.info(arg)
-        else:
+        if args:
             logger.info(arg.format(*args))
+        else:
+            logger.info(arg)
 
 
 def warn(arg, *args):
-    if len(args) == 0:
+    if not args:
         logger.warning(arg)
     else:
         logger.warning(arg.format(*args))
 
 def error(arg, *args):
-    if len(args) == 0:
+    if not args:
         logger.error(arg)
     else:
         logger.error(arg.format(*args))

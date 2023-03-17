@@ -30,13 +30,14 @@ def hello_world(msg):
                     found = False
         if found:
             return '你输入的内容包含敏感词汇'
-        else:
-            logger.info('[WX_Public] receive public msg: {}, userId: {}'.format(msg.content, msg.source))
-            key = msg.content + '|' + msg.source
-            if cache.get(key):
-                # request time
-                cache.get(key)['req_times'] += 1
-            return WechatSubsribeAccount().handle(msg)
+        logger.info(
+            f'[WX_Public] receive public msg: {msg.content}, userId: {msg.source}'
+        )
+        key = f'{msg.content}|{msg.source}'
+        if cache.get(key):
+            # request time
+            cache.get(key)['req_times'] += 1
+        return WechatSubsribeAccount().handle(msg)
 
 
 class WechatSubsribeAccount(Channel):
@@ -47,8 +48,7 @@ class WechatSubsribeAccount(Channel):
         robot.run()
 
     def handle(self, msg, count=0):
-        context = dict()
-        context['from_user_id'] = msg.source
+        context = {'from_user_id': msg.source}
         key = msg.source
         res = cache.get(key)
         if msg.content == "继续":
@@ -76,6 +76,6 @@ class WechatSubsribeAccount(Channel):
         key = context['from_user_id']
         cache[key] = {"status": "waiting"}
         reply_text = super().build_reply_content(query, context)
-        logger.info('[WX_Public] reply content: {}'.format(reply_text))
+        logger.info(f'[WX_Public] reply content: {reply_text}')
 
         cache[key] = {"status": "success", "data": reply_text}
